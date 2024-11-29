@@ -12,16 +12,18 @@ import csv
 from PyQt5 import QtCore, QtGui
 import PyQt5.QtWidgets as QtW
 from PyQt5.QtCore import Qt
-import matplotlib
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT
 
 
 class GoodTimeWindow(QtW.QMainWindow):
     
-    def __init__(self, fileName, commondef = "_goodtime_commondef/SAROC_Commondefs_2024_04_30.sqi"):
+    def __init__(self, fileName, commondef = "_goodtime_commondef/241128_SAROC_Commondef.sqi"):
         super().__init__()
         
         self.fileName = fileName
+        # GoodTime exp parameters (SAROC):
+        self.Nchannels = 106
 
         self.setWindowTitle('goodTime_sequence')
         self._main = QtW.QWidget()
@@ -49,7 +51,7 @@ class GoodTimeWindow(QtW.QMainWindow):
         
         # Canvas
         figwidth, figheight = 9, 6
-        self.fig = matplotlib.figure.Figure(figsize=(figwidth,figheight), facecolor=self.windowcolor)
+        self.fig = plt.Figure(figsize=(figwidth,figheight), facecolor=self.windowcolor)
         self.canvas = FigureCanvasQTAgg(self.fig)
         self.navi_toolbar = NavigationToolbar2QT(self.canvas, self)
         self.ax1 = self.fig.add_subplot(2,1,1)
@@ -92,20 +94,19 @@ class GoodTimeWindow(QtW.QMainWindow):
         
         ## Generating channel numbers
         # self.listDig = np.arange(32).tolist() + [32,33,34,35,36, 38, 45, 48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63]
-        self.listDig = np.arange(106).tolist() # 106 channels to account for on SAROCEMA
+        self.listDig = np.arange(self.Nchannels).tolist() # self.Nchannels = 106 channels to account for on SAROCEMA
         
         ## Generating channel names
-        self.chNames = np.genfromtxt(commondef, \
-                            dtype='str', comments='//', delimiter = ' = ', skip_header=15, max_rows=79, usecols=(0,))
-        
-        list1 = [8,24,25,82,83]
-        list2 = ['broken', 'broken', 'broken', 'unused','unused']
-        for idx in range(5):
-            self.chNames = np.insert(self.chNames,list1[idx],list2[idx])
+        self.chNames = self.getlabels(commondef)
+                
+        # list1 = [8,24,25,82,83]
+        # list2 = ['broken', 'broken', 'broken', 'unused','unused']
+        # for idx in range(5):
+        #     self.chNames = np.insert(self.chNames,list1[idx],list2[idx])
         
         self.checkboxChs, self.checkedChs = [], []
         self.checkedDig = []
-        for idx in range(84):
+        for idx in range(self.Nchannels):
             self.checkboxChs.append(QtW.QCheckBox('Ch' + str(idx).zfill(2) + ':' + self.chNames[idx]))
             self.checkboxChs[idx].setChecked(False)
             self.checkboxChs[idx].clicked.connect(self.add_plot) # connect checkboxes click event
@@ -159,6 +160,29 @@ class GoodTimeWindow(QtW.QMainWindow):
 #            self.tracelabel.setText(str(len(self.data))+' traces in memory')
 #            self.update_plot()
 #            self.data_arrived = False
+
+    def _formattext(self, label: str)->str:
+        """Formats a label by removing tabs, white spaces and ;"""
+        return label.replace('\t', "").replace(";", "").replace(" ", "")
+
+    def _formatlist(self, inputlist: np.ndarray)->np.ndarray:
+        """Returns a formatted array of channel names.
+        Input:
+        inputlist: ndarray from GoodTime commondef (raw)
+        Output:
+        res: ndarray of channel labels"""
+        res = np.full(self.Nchannels,"Inactive", dtype=object)
+        for label in inputlist:
+            label = self._formattext(label)
+            split = label.split("=")
+            if len(split) > 1:
+                chname, chnumber = split[0], int(split[1])
+                res[chnumber] = chname
+        return res
+
+    def getlabels(self, commondef_fname):
+        listed_names = np.genfromtxt(commondef_fname, dtype='str', comments='//', delimiter = ' = ', skip_header=15, max_rows=106, usecols=(0,))
+        return self._formatlist(listed_names)
     
     @QtCore.pyqtSlot(object)
     def update_data(self, data):
@@ -320,13 +344,14 @@ class GoodTimeControl(QtCore.QObject):
     def get_data(self):
         self.lastmodtimeNOW = path.getmtime(self.fileName)
         if self.startcount == 0 or (self.lastmodtimeNOW - self.lastmodtime != 0):
-            Ana6723 = np.fromfile('G:/data/temp/AnaBuffer1.bin', dtype=np.int16).reshape(-1,32)
-            Ana6259 = np.fromfile('G:/data/temp/AnaBuffer2.bin', dtype=np.int16).reshape(-1,4)
-            Ana6733 = np.fromfile('G:/data/temp/AnaBuffer3.bin', dtype=np.int16).reshape(-1,8)
-            Ana6733b = np.fromfile('G:/data/temp/AnaBuffer4.bin', dtype=np.int16).reshape(-1,8)
-            Dig6259 = np.fromfile('G:/data/temp/DigBuffer.bin', dtype=np.uint8).reshape(-1,1)
-            Dig6259 = np.flip(np.unpackbits(Dig6259, axis=1), axis=1).reshape(-1,32)
-            dataout = [Dig6259, Ana6723, Ana6259, Ana6733, Ana6733b]
+            # Ana6723 = np.fromfile('G:/data/temp/AnaBuffer1.bin', dtype=np.int16).reshape(-1,32)
+            # Ana6259 = np.fromfile('G:/data/temp/AnaBuffer2.bin', dtype=np.int16).reshape(-1,4)
+            # Ana6733 = np.fromfile('G:/data/temp/AnaBuffer3.bin', dtype=np.int16).reshape(-1,8)
+            # Ana6733b = np.fromfile('G:/data/temp/AnaBuffer4.bin', dtype=np.int16).reshape(-1,8)
+            # Dig6259 = np.fromfile('G:/data/temp/DigBuffer.bin', dtype=np.uint8).reshape(-1,1)
+            # Dig6259 = np.flip(np.unpackbits(Dig6259, axis=1), axis=1).reshape(-1,32)
+            # dataout = [Dig6259, Ana6723, Ana6259, Ana6733, Ana6733b]
+            dataout = None
             self.lastmodtime = self.lastmodtimeNOW
             self.goodTimeData.emit(dataout)
             self.startcount += 1
@@ -336,7 +361,8 @@ if __name__ == '__main__':
     app = QtCore.QCoreApplication.instance() # checks if QApplication already exists 
     if app is None: # create QApplication if it doesnt exist 
         app = QtW.QApplication(sys.argv)
-    goodTimeSeq = GoodTimeWindow('G:/data/temp/AnaBuffer1.bin')
+    goodtimefolder = "_old/"
+    goodTimeSeq = GoodTimeWindow(goodtimefolder)
     goodTimeSeq.activateWindow()
     app.aboutToQuit.connect(app.deleteLater)
     app.exec_()            
