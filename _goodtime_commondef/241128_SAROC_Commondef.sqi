@@ -1,4 +1,4 @@
- //-------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------
 //-------------------- General settings for the SAROC -------------------------
 //-------------------------------------------------------------------------------
 //----Changelog------------------------------------------------------------------
@@ -92,7 +92,7 @@
 //-----------------------------------------------------------------------------------------
 //----- DEVICE 3 : Analog: PCI6723 13bit 32 AOs and 8 digitals not in Goodtime 
 //                       ([acc. to Jakob]static -> therefore not useful for Goodtime program)
-//                       (but according to Jürgen the digital I/O of this card work with Goodtime.)
+//                       (but according to Jrgen the digital I/O of this card work with Goodtime.)
 //			 (800kS/s per channel for one channel, 45kS/s per channel for 32 channels)
 // (Device 3): Conn.1 : 40,...,47 (8), Conn. 2 48,...,71 (24) 
 // Free channels :  53, 57
@@ -151,7 +151,7 @@
 //-----------------------------------------------------------------------------------------
 //----- DEVICE 4 : NOT USED  Analog: PCI6723 13bit 32 AOs and 8 digitals 
 //                       ([acc. to Jakob]static -> therefore not useful for Goodtime program)
-//                       (but according to Jürgen the digital I/O of this card works with Goodtime.)
+//                       (but according to J?rgen the digital I/O of this card works with Goodtime.)
 //			 (800kS/s per channel for one channel, 45kS/s per channel for 32 channels)
 //-----------------------------------------------------------------------------------------
 
@@ -444,8 +444,8 @@
 //---------------------------------------	Guppy Pro -----------------------------------------------
 
 dtProbeGuppy	=	0.050*ms; // 0.05 length of the probe laser pulse
-dtPreOpenGuppy 	= 	0.2*ms; 	// change in mai 2021 before the value was 0.2ms...tprobe-dtPreOpenPCO time when a trigger is sent to the camera.  The exposure of the CCD begins 3-20 microsec after this trigger //Guppy specs jiite exposre +/- 15 µs and also <160 µs delay !!..
-dtExposureGuppy = 	1*ms; 		// 1*ms duration of the exposure of the first image with the atoms  Guppy F031 specs :real minimum exposure time : set min exposure time=4µs + 71µs offset= 75 µs//1
+dtPreOpenGuppy 	= 	0.2*ms; 	// change in mai 2021 before the value was 0.2ms...tprobe-dtPreOpenPCO time when a trigger is sent to the camera.  The exposure of the CCD begins 3-20 microsec after this trigger //Guppy specs jiite exposre +/- 15 ?s and also <160 ?s delay !!..
+dtExposureGuppy = 	1*ms; 		// 1*ms duration of the exposure of the first image with the atoms  Guppy F031 specs :real minimum exposure time : set min exposure time=4?s + 71?s offset= 75 ?s//1
 dtReadoutGuppy 	= 	13*ms; 		// Time to read 1 picture : normaly > 9.9 ms // 13 20
 dtGuppyBright   =   	50*ms;		//duration between end readout and new image //20//0  50    
 
