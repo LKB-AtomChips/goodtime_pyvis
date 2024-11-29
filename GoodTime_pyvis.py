@@ -18,7 +18,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationTool
 
 class GoodTimeWindow(QtW.QMainWindow):
     
-    def __init__(self, fileName):
+    def __init__(self, fileName, commondef = "_goodtime_commondef/SAROC_Commondefs_2024_04_30.sqi"):
         super().__init__()
         
         self.fileName = fileName
@@ -91,11 +91,16 @@ class GoodTimeWindow(QtW.QMainWindow):
         self.updateCheckbox.setChecked(False)
 #        self.savebutton = QtW.QPushButton('Save')
 #        self.savebutton.clicked.connect(self.save)
-        self.listDig = np.arange(32).tolist() + [32,33,34,35,36, 38, 45, 48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63]
+
+        # self.listDig = np.arange(32).tolist() + [32,33,34,35,36, 38, 45, 48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63]
+        self.listDig = np.arange(106).tolist() # 106 channels to account for
         
 #        self.chNames = np.genfromtxt('//LPTFPC18/SequencesGoodtime/temp/TACC2defs.sqi', \
 #                            dtype='str', comments='//', delimiter = ' = ', skip_header=15, max_rows=79, usecols=(0,))
-        self.chNames = np.genfromtxt('G:/Sequences/210917/sequences/TACC2defs.sqi', \
+        # self.chNames = np.genfromtxt('G:/Sequences/210917/sequences/TACC2defs.sqi', \
+        #                     dtype='str', comments='//', delimiter = ' = ', skip_header=15, max_rows=79, usecols=(0,))
+
+        self.chNames = np.genfromtxt(commondef, \
                             dtype='str', comments='//', delimiter = ' = ', skip_header=15, max_rows=79, usecols=(0,))
         
         list1 = [8,24,25,82,83]
