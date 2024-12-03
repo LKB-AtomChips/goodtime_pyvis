@@ -196,7 +196,8 @@ class GoodTimeWindow(QtW.QMainWindow):
             self.data_arrived = True
 
     def chselect(self, chn):
-        ''' channel number start with 0
+        ''' TO MODIFY : TACC SPECIFIC
+        channel number start with 0
         0 -- 31 digital channels NI6259
         32 -- 63 bad analog channels NI6723
         64 -- 67 analog output of NI6259
