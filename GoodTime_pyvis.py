@@ -196,22 +196,22 @@ class GoodTimeWindow(QtW.QMainWindow):
             self.data_arrived = True
 
     def chselect(self, chn):
-        ''' TO MODIFY : TACC SPECIFIC
+        '''
+        Returns data, formatted according to channel number specificity.
         channel number start with 0
-        0 -- 31 digital channels NI6259
-        32 -- 63 bad analog channels NI6723
-        64 -- 67 analog output of NI6259
-        68 -- 75 analog NI6733
-        76 -- 83 analog NI6733b
+        0  -- 31 digital channels NI6533 - Device 1
+        32 -- 39 analog channels NI6733 16 bits - Device 2
+        40 -- 71 analog NI6723 13 bits - Device 3
+        72 -- 75 analog NI6259 16 bits - Device 5
+        76 -- 106 digital NI6259 - Device 5
+        Device 4 (PIC6723, same as 3) not used 
         '''
 #        print('chselect')
         if chn >=0 and chn < 32: dataout = np.array(self.data[0][:,chn])
-        elif chn < 64: 
-            dataout = np.array(self.data[1][:,chn-32]) /4095
-
-        elif chn < 68: dataout = np.array(self.data[2][:,chn-64]) /32767
-        elif chn < 76: dataout = np.array(self.data[3][:,chn-68]) /32767
-        elif chn < 84: dataout = np.array(self.data[4][:,chn-76]) /32767
+        elif chn < 40: dataout = np.array(self.data[1][:,chn-32]) / (2**16 - 1)
+        elif chn < 72: dataout = np.array(self.data[2][:,chn-40]) / (2**13 - 1)
+        elif chn < 76: dataout = np.array(self.data[3][:,chn-72]) / (2**16 - 1)
+        elif chn < 107: dataout = np.array(self.data[4][:,chn-76])
         else: print('channel number error!'); return None
         return dataout
         
