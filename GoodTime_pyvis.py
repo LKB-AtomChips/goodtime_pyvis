@@ -67,7 +67,7 @@ class GoodTimeWindow(QtW.QMainWindow):
         self.ax1.set_autoscaley_on(1); self.ax2.set_autoscaley_on(1)
         self.fig.tight_layout()
         self.canvas.resize(figwidth*self.fig.dpi, figheight*self.fig.dpi)
-        self.canvas.setMinimumSize(figwidth*self.fig.dpi, figheight*self.fig.dpi)
+        # self.canvas.setMinimumSize(figwidth*self.fig.dpi, figheight*self.fig.dpi) # this doesnt work right now
         self.canvas.draw()
 
         # Widgets
@@ -161,11 +161,11 @@ class GoodTimeWindow(QtW.QMainWindow):
 #            self.update_plot()
 #            self.data_arrived = False
 
-    def _formattext(self, label: str)->str:
+    def _formattext(self, label):
         """Formats a label by removing tabs, white spaces and ;"""
         return label.replace('\t', "").replace(";", "").replace(" ", "")
 
-    def _formatlist(self, inputlist: np.ndarray)->np.ndarray:
+    def _formatlist(self, inputlist):
         """Returns a formatted array of channel names.
         Input:
         inputlist: ndarray from GoodTime commondef (raw)
@@ -352,7 +352,16 @@ class GoodTimeControl(QtCore.QObject):
             # Dig6259 = np.fromfile('G:/data/temp/DigBuffer.bin', dtype=np.uint8).reshape(-1,1)
             # Dig6259 = np.flip(np.unpackbits(Dig6259, axis=1), axis=1).reshape(-1,32)
             # dataout = [Dig6259, Ana6723, Ana6259, Ana6733, Ana6733b]
-            dataout = None
+            
+            Device2 = np.fromfile(self.fileName + '/AnaBuffer1.bin', dtype=np.int16).reshape(-1,8)
+            Device3 = np.fromfile(self.fileName + '/AnaBuffer2.bin', dtype=np.int16).reshape(-1,32)
+            Device5ana = np.fromfile(self.fileName + '/AnaBuffer3.bin', dtype=np.int16).reshape(-1,4)
+            Device1 = np.fromfile(self.fileName + '/DigBuffer1.bin', dtype=np.uint8).reshape(-1,1)
+            Device1 = np.flip(np.unpackbits(Device1, axis=1), axis=1).reshape(-1,32)
+            Device5dig = np.fromfile(self.fileName + '/DigBuffer2.bin', dtype=np.uint8).reshape(-1,1)
+            Device5dig = np.flip(np.unpackbits(Device5dig, axis=1), axis=1).reshape(-1,32)
+            dataout = [Device1, Device2, Device3, Device5ana, Device5dig]
+            
             self.lastmodtime = self.lastmodtimeNOW
             self.goodTimeData.emit(dataout)
             self.startcount += 1
@@ -362,7 +371,7 @@ if __name__ == '__main__':
     app = QtCore.QCoreApplication.instance() # checks if QApplication already exists 
     if app is None: # create QApplication if it doesnt exist 
         app = QtW.QApplication(sys.argv)
-    goodtimefolder = "_old/"
+    goodtimefolder = "//MOUFFETARD/goodTime_exchange"
     goodTimeSeq = GoodTimeWindow(goodtimefolder)
     goodTimeSeq.activateWindow()
     app.aboutToQuit.connect(app.deleteLater)
