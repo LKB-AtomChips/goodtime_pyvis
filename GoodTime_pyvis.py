@@ -14,6 +14,7 @@ import PyQt5.QtWidgets as QtW
 from PyQt5.QtCore import Qt
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT
+import json
 
 
 class GoodTimeWindow(QtW.QMainWindow):
@@ -22,8 +23,10 @@ class GoodTimeWindow(QtW.QMainWindow):
         super().__init__()
         
         self.fileName = fileName
+        self.config_filename = "config.json"
+        self._loadSettings()
         # GoodTime exp parameters (SAROC):
-        self.Nchannels = 106
+        self.Nchannels = 107
 
         self.setWindowTitle('goodTime_sequence')
         self._main = QtW.QWidget()
@@ -36,8 +39,8 @@ class GoodTimeWindow(QtW.QMainWindow):
 
         self.pausestatus = True
         self.data_arrived = False
-        self.data, self.x, self.dataplot, self.datatemp = [],[],[],[]
-        self.dtStep = 50e-6
+        self.data, self.dataplot, self.datatemp = [],[],[]
+        self.dtStep = 25e-3 # timestep in ms
         
         # Thread inizialization
         self.goodTime_thread = QtCore.QThread()
@@ -60,11 +63,15 @@ class GoodTimeWindow(QtW.QMainWindow):
         self.ax1.tick_params(axis='both', which='major', labelsize=8)
         self.ax2 = self.fig.add_subplot(2,1,2,sharex=self.ax1) 
         self.ax2.set_ylabel('Digital', fontsize=12)
+        self.ax2.set_xlabel("t (ms)")
         self.ax2.set_ylim(0, 1) # shared x
         self.ax2.tick_params(axis='both', which='major', labelsize=8)
         self.ax2.set_yticklabels([])
         self.ax1.set_autoscalex_on(1); self.ax2.set_autoscalex_on(1)
         self.ax1.set_autoscaley_on(1); self.ax2.set_autoscaley_on(1)
+        self.ax1.grid()
+        self.ax2.grid()
+        self.reset_data
         self.fig.tight_layout()
         self.canvas.resize(figwidth*self.fig.dpi, figheight*self.fig.dpi)
         # self.canvas.setMinimumSize(figwidth*self.fig.dpi, figheight*self.fig.dpi) # this doesnt work right now
@@ -72,7 +79,7 @@ class GoodTimeWindow(QtW.QMainWindow):
 
         # Widgets
         self.startbutton = QtW.QPushButton('Start', checkable=True)
-#        self.startbutton.clicked.connect(self.start_SeqPlot)
+        self.startbutton.clicked.connect(self.start_SeqPlot)
         self.startbutton.toggled.connect(self.start_SeqPlot)
         self.startbutton.toggled.connect(self.goodTime_worker.setSeqPlotState)
         self.startbutton.setChecked(True)
@@ -92,9 +99,18 @@ class GoodTimeWindow(QtW.QMainWindow):
         self.updateCheckbox = QtW.QCheckBox("Auto update")
         self.updateCheckbox.setChecked(False)
         
-        ## Generating channel numbers
-        # self.listDig = np.arange(32).tolist() + [32,33,34,35,36, 38, 45, 48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63]
-        self.listDig = np.arange(self.Nchannels).tolist() # self.Nchannels = 106 channels to account for on SAROCEMA
+        # Time offset button
+        self.timeoffsetLabel = QtW.QLabel("Time offset (ms):")
+        self.timeoffsetSpinbox = QtW.QDoubleSpinBox()
+        self.timeoffsetSpinbox.setRange(0, 10e3)
+        self.timeoffsetSpinbox.setDecimals(2)
+        self.timeoffsetSpinbox.setValue(self.timeoffset)
+        
+        self.timeoffsetSpinbox.valueChanged.connect(self.change_timeoffset)
+        
+        
+        ## Generating list of digital channel numbers
+        self.listDig = [k for k in range(self.Nchannels) if self.isDigital(k)]
         
         ## Generating channel names
         self.chNames = self.getlabels(commondef)
@@ -104,12 +120,13 @@ class GoodTimeWindow(QtW.QMainWindow):
         # for idx in range(5):
         #     self.chNames = np.insert(self.chNames,list1[idx],list2[idx])
         
-        self.checkboxChs, self.checkedChs = [], []
-        self.checkedDig = []
+        self.checkboxChs = []
         for idx in range(self.Nchannels):
-            self.checkboxChs.append(QtW.QCheckBox('Ch' + str(idx).zfill(2) + ':' + self.chNames[idx]))
-            self.checkboxChs[idx].setChecked(False)
+            self.checkboxChs.append(QtW.QCheckBox('Ch' + str(idx).zfill(3) + ':' + self.chNames[idx]))
             self.checkboxChs[idx].clicked.connect(self.add_plot) # connect checkboxes click event
+            if idx in self.checkedChs:
+                self.checkboxChs[idx].setChecked(True)
+                self.init_plot(idx)
 
         # Layouts
         self.buttonLayout = QtW.QGridLayout()
@@ -120,10 +137,16 @@ class GoodTimeWindow(QtW.QMainWindow):
         self.buttonLayout.addWidget(self.clearbutton,0,2)
         self.buttonLayout.addWidget(self.resetdatabutton,0,3)
         self.buttonLayout.addWidget(self.updateCheckbox,0,4)
+        
+        self.buttonLayout.addWidget(self.timeoffsetLabel,0,5)
+        self.buttonLayout.addWidget(self.timeoffsetSpinbox,0,6)
 #        self.buttonLayout.addWidget(self.savebutton,0,3)
         self.checkLayout = QtW.QGridLayout()
-        for idx in range(84):
-            self.checkLayout.addWidget(self.checkboxChs[idx],idx//8,idx%8)
+        index = 0
+        for idx in range(self.Nchannels):
+            if  self.chNames[idx] != "Inactive":
+                self.checkLayout.addWidget(self.checkboxChs[idx],index//8,index%8)
+                index += 1
 
         self.vbl = QtW.QVBoxLayout(self._main)
         self.vbl.addWidget(self.navi_toolbar)
@@ -139,6 +162,18 @@ class GoodTimeWindow(QtW.QMainWindow):
         self.move(fg.topLeft()) # top left of rectangle becomes top left of window centering it
 
 
+    def change_timeoffset(self):
+        self.timeoffset = self.timeoffsetSpinbox.value()
+        self.update_plot()
+        
+    def isDigital(self, chnumber):
+        """ Returns True if chnumber represents a digital channel. Edit this if more chnumbers need to be accounted for """
+        if chnumber <= 31:
+            return True
+        elif (chnumber <= 107) & (chnumber >= 76):
+            return True
+        return False
+
     def start_SeqPlot(self):
         if self.startbutton.isChecked(): 
             self.startbutton.setText('Stop')
@@ -146,6 +181,27 @@ class GoodTimeWindow(QtW.QMainWindow):
         else:
             self.startbutton.setText('Start')
             self.pausestatus = True
+            
+    
+    def _saveSettings(self):
+        settings = {"checkedChs": self.checkedChs, "checkedDig": self.checkedDig, "timeoffset":self.timeoffset}
+        with open(self.config_filename, 'w') as f:
+            json.dump(settings, f)
+            print("Config file saved !")
+    
+    def _loadSettings(self):
+        try:
+            with open(self.config_filename, 'r') as f:
+                imported_settings = json.load(f)
+                print("Config file loaded !")
+            self.timeoffset = imported_settings["timeoffset"]
+            self.checkedChs = imported_settings["checkedChs"]
+            self.checkedDig = imported_settings["checkedDig"]
+        except:
+            print("No config file found.")
+            self.timeoffset = 0
+            self.checkedChs = []
+            self.checkedDig = []
         
 #    @QtCore.pyqtSlot(dict)
 #    def camera_status(self, datacam):
@@ -181,7 +237,8 @@ class GoodTimeWindow(QtW.QMainWindow):
         return res
 
     def getlabels(self, commondef_fname):
-        listed_names = np.genfromtxt(commondef_fname, dtype='str', comments='//', delimiter = ' = ', skip_header=15, max_rows=106, usecols=(0,))
+        # listed_names = np.genfromtxt(commondef_fname, dtype='str', comments='//', delimiter = ' = ', skip_header=15, max_rows=self.Nchannels + 5, usecols=(0,))
+        listed_names = np.genfromtxt(commondef_fname, dtype='str', comments='//', delimiter = '\n', skip_header=15, max_rows=self.Nchannels + 10, usecols=(0,))
         return self._formatlist(listed_names)
     
     @QtCore.pyqtSlot(object)
@@ -189,7 +246,7 @@ class GoodTimeWindow(QtW.QMainWindow):
         self.datatemp = data
         if self.pausestatus == False and self.updateCheckbox.isChecked() or self.data == []:
             self.data = data
-            self.x = self.dtStep *np.arange(data[0].shape[0])
+            self.x = self.dtStep * np.arange(data[0].shape[0])
 #            self.tracelabel.setText(str(len(self.data))+' traces in memory')
             self.update_plot()
         elif self.pausestatus == False and not self.updateCheckbox.isChecked():
@@ -203,7 +260,7 @@ class GoodTimeWindow(QtW.QMainWindow):
         32 -- 39 analog channels NI6733 16 bits - Device 2
         40 -- 71 analog NI6723 13 bits - Device 3
         72 -- 75 analog NI6259 16 bits - Device 5
-        76 -- 106 digital NI6259 - Device 5
+        76 -- 107 digital NI6259 - Device 5
         Device 4 (PIC6723, same as 3) not used 
         '''
 #        print('chselect')
@@ -211,23 +268,33 @@ class GoodTimeWindow(QtW.QMainWindow):
         elif chn < 40: dataout = np.array(self.data[1][:,chn-32]) / (2**16 - 1)
         elif chn < 72: dataout = np.array(self.data[2][:,chn-40]) / (2**13 - 1)
         elif chn < 76: dataout = np.array(self.data[3][:,chn-72]) / (2**16 - 1)
-        elif chn < 107: dataout = np.array(self.data[4][:,chn-76])
+        elif chn < 108: dataout = np.array(self.data[4][:,chn-76])
         else: print('channel number error!'); return None
         return dataout
         
-            
+    
+    def init_plot(self, num):
+        i = num
+        if self.isDigital(i):
+            newplot = self.ax2.plot([0], [0], "-")
+        else:
+            newplot = self.ax1.plot([0], [0], "-")
+        self.dataplot.append(newplot)
+        self.checkboxChs[i].setStyleSheet('color:'+ newplot[0].get_color() + ';')
+        return True
+    
     def add_plot(self):
         boxtext = self.sender()
-        i = int(boxtext.text()[2:4])
+        i = int(boxtext.text()[2:5])
 #        print('add_plot ch%.0f' %(i))
         if self.checkboxChs[i].isChecked():
             self.checkedChs.append(i)
             if i in self.listDig:
                 self.checkedDig.append(i)
-                newplot = self.ax2.plot(self.x, self.chselect(i) - 1.1*float(self.checkedDig.index(i)), '-') # shift digital lines according to the position in the list
-
+                newplot = self.ax2.plot(self.x- self.timeoffset, self.chselect(i) - 1.1*float(self.checkedDig.index(i)), '-') # shift digital lines according to the position in the list
+              
             else:
-                newplot = self.ax1.plot(self.x, self.chselect(i), '-')
+                newplot = self.ax1.plot(self.x- self.timeoffset, self.chselect(i), '-')
             self.checkboxChs[i].setStyleSheet('color:'+ newplot[0].get_color() + ';')
             self.dataplot.append(newplot)
         else:
@@ -237,7 +304,8 @@ class GoodTimeWindow(QtW.QMainWindow):
                 self.dataplot[idx2remove].pop(0).remove() # not remove list, but remove line
                 del self.dataplot[idx2remove]
                 self.checkedChs.remove(i)
-            if i in self.listDig:
+            if i in self.checkedDig:
+            # if i in self.listDig:
                 old_checkedDig = self.checkedDig.copy() # save old list to know how much they were shifted
                 self.checkedDig.remove(i)               # new list to determine how much they should be shifted
                 for j, jj in enumerate(self.checkedChs): # to reposition the digital lines
@@ -252,7 +320,7 @@ class GoodTimeWindow(QtW.QMainWindow):
         
     def update_plot(self): # update plot with new data.         
         for i in range(len(self.dataplot)):
-            self.dataplot[i][0].set_xdata(self.x)
+            self.dataplot[i][0].set_xdata(self.x - self.timeoffset)
             idx = self.checkedChs[i]
             if idx in self.checkedDig:
                 self.dataplot[i][0].set_ydata(self.chselect(self.checkedChs[i])-1.1*float(self.checkedDig.index(idx)))     
@@ -271,13 +339,13 @@ class GoodTimeWindow(QtW.QMainWindow):
         self.dataplot = []
         self.checkedChs = []
         self.checkedDig = []
-        self.ax1.set_xlim(self.x[0],self.x[-1])  
+        self.ax1.set_xlim(self.x[0] - self.timeoffset,self.x[-1]- self.timeoffset)  
 #        self.ax2.set_xlim(self.x[0],self.x[-1])  
 #        self.ax1.set_ylim(0,1)
         self.canvas.draw()
         
     def reset_zoom(self):
-        self.ax1.set_xlim(self.x[0],self.x[-1])  
+        self.ax1.set_xlim(self.x[0]- self.timeoffset,self.x[-1]- self.timeoffset)  
 #        self.ax2.set_xlim(self.x[0],self.x[-1])  
         self.ax1.autoscale(axis='y'); self.ax2.autoscale(axis='y')
         self.canvas.draw()
@@ -313,6 +381,7 @@ class GoodTimeWindow(QtW.QMainWindow):
     # If window is closed
 #        self.hide()
         self.goodTime_thread.quit(); self.goodTime_thread.wait()
+        self._saveSettings()
 #        np.seterr(**self.oldsett)  # reset numpy to default settings
         self.close()
 
@@ -345,13 +414,6 @@ class GoodTimeControl(QtCore.QObject):
     def get_data(self):
         self.lastmodtimeNOW = path.getmtime(self.fileName)
         if self.startcount == 0 or (self.lastmodtimeNOW - self.lastmodtime != 0):
-            # Ana6723 = np.fromfile('G:/data/temp/AnaBuffer1.bin', dtype=np.int16).reshape(-1,32)
-            # Ana6259 = np.fromfile('G:/data/temp/AnaBuffer2.bin', dtype=np.int16).reshape(-1,4)
-            # Ana6733 = np.fromfile('G:/data/temp/AnaBuffer3.bin', dtype=np.int16).reshape(-1,8)
-            # Ana6733b = np.fromfile('G:/data/temp/AnaBuffer4.bin', dtype=np.int16).reshape(-1,8)
-            # Dig6259 = np.fromfile('G:/data/temp/DigBuffer.bin', dtype=np.uint8).reshape(-1,1)
-            # Dig6259 = np.flip(np.unpackbits(Dig6259, axis=1), axis=1).reshape(-1,32)
-            # dataout = [Dig6259, Ana6723, Ana6259, Ana6733, Ana6733b]
             
             Device2 = np.fromfile(self.fileName + '/AnaBuffer1.bin', dtype=np.int16).reshape(-1,8)
             Device3 = np.fromfile(self.fileName + '/AnaBuffer2.bin', dtype=np.int16).reshape(-1,32)

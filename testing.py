@@ -34,7 +34,7 @@ def formatlist(inputlist: np.ndarray)->np.ndarray:
     return res
 
 def getlabels(commondef_fname):
-    listed_names = np.genfromtxt(commondef_fname, dtype='str', comments='//', delimiter = ' = ', skip_header=15, max_rows=106, usecols=(0,))
+    listed_names = np.genfromtxt(commondef_fname, dtype='str', comments='//', delimiter = '\n', skip_header=15, max_rows=106 + 10, usecols=(0,))
     return formatlist(listed_names)
 
 # %%
