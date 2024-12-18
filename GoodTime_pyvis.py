@@ -11,7 +11,6 @@ import os.path as path
 import csv
 from PyQt5 import QtCore, QtGui
 import PyQt5.QtWidgets as QtW
-from PyQt5.QtCore import Qt
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT
 import json
@@ -126,7 +125,6 @@ class GoodTimeWindow(QtW.QMainWindow):
             self.checkboxChs[idx].clicked.connect(self.add_plot) # connect checkboxes click event
             if idx in self.checkedChs:
                 self.checkboxChs[idx].setChecked(True)
-                self.init_plot(idx)
 
         # Layouts
         self.buttonLayout = QtW.QGridLayout()
@@ -145,6 +143,7 @@ class GoodTimeWindow(QtW.QMainWindow):
         index = 0
         for idx in range(self.Nchannels):
             if  self.chNames[idx] != "Inactive":
+                self.init_plot(idx)
                 self.checkLayout.addWidget(self.checkboxChs[idx],index//8,index%8)
                 index += 1
 
@@ -160,6 +159,7 @@ class GoodTimeWindow(QtW.QMainWindow):
         cp = QtW.QDesktopWidget().availableGeometry().center() # center point of screen
         fg.moveCenter(cp) # move rectangle's center point to screen's center point
         self.move(fg.topLeft()) # top left of rectangle becomes top left of window centering it
+        
 
 
     def change_timeoffset(self):
@@ -245,12 +245,17 @@ class GoodTimeWindow(QtW.QMainWindow):
     def update_data(self, data):
         self.datatemp = data
         if self.pausestatus == False and self.updateCheckbox.isChecked() or self.data == []:
+            print('pouet')
+            self.data_arrived = True
             self.data = data
             self.x = self.dtStep * np.arange(data[0].shape[0])
 #            self.tracelabel.setText(str(len(self.data))+' traces in memory')
             self.update_plot()
         elif self.pausestatus == False and not self.updateCheckbox.isChecked():
+            print("coin")
             self.data_arrived = True
+        else:
+            print('eu')
 
     def chselect(self, chn):
         '''
@@ -280,7 +285,8 @@ class GoodTimeWindow(QtW.QMainWindow):
         else:
             newplot = self.ax1.plot([0], [0], "-")
         self.dataplot.append(newplot)
-        self.checkboxChs[i].setStyleSheet('color:'+ newplot[0].get_color() + ';')
+        if i in self.checkedChs:
+            self.checkboxChs[i].setStyleSheet('color:'+ newplot[0].get_color() + ';')
         return True
     
     def add_plot(self):
@@ -318,15 +324,19 @@ class GoodTimeWindow(QtW.QMainWindow):
         self.ax1.autoscale(axis='y');self.ax2.autoscale(axis='y')
         self.canvas.draw() 
         
-    def update_plot(self): # update plot with new data.         
+    def update_plot(self): # update plot with new data.
         for i in range(len(self.dataplot)):
             self.dataplot[i][0].set_xdata(self.x - self.timeoffset)
-            idx = self.checkedChs[i]
+            try:
+                idx = self.checkedChs[i]
+            except IndexError:
+                print(idx)
             if idx in self.checkedDig:
                 self.dataplot[i][0].set_ydata(self.chselect(self.checkedChs[i])-1.1*float(self.checkedDig.index(idx)))     
             else:
                 self.dataplot[i][0].set_ydata(self.chselect(self.checkedChs[i]))
-        self.ax1.relim(); self.ax2.relim()
+        self.ax1.set_xlim(self.x[0] - self.timeoffset,self.x[-1]- self.timeoffset)  
+        # self.ax1.relim(); self.ax2.relim()
 #        self.ax1.autoscale();self.ax2.autoscale()        
         self.canvas.draw()
         
@@ -387,7 +397,7 @@ class GoodTimeWindow(QtW.QMainWindow):
 
 class GoodTimeControl(QtCore.QObject):
     goodTimeData = QtCore.pyqtSignal(object)
-
+    
     def __init__(self, fileName):
         super().__init__()
         self.fileName = fileName
@@ -410,31 +420,37 @@ class GoodTimeControl(QtCore.QObject):
         """ this is the method running indefinitly in the associated thread """
         if self.active:
             self.get_data()
-            
+    
     def get_data(self):
-        self.lastmodtimeNOW = path.getmtime(self.fileName)
-        if self.startcount == 0 or (self.lastmodtimeNOW - self.lastmodtime != 0):
+        self.lastmodtimeNOW = path.getmtime(self.fileName + '/AnaBuffer1.bin')
+        if self.startcount == 0:
+            self.dataRetriever()
+        if abs(self.lastmodtimeNOW - self.lastmodtime) >= 0.2:
+            self.dataRetriever()
             
-            Device2 = np.fromfile(self.fileName + '/AnaBuffer1.bin', dtype=np.int16).reshape(-1,8)
-            Device3 = np.fromfile(self.fileName + '/AnaBuffer2.bin', dtype=np.int16).reshape(-1,32)
-            Device5ana = np.fromfile(self.fileName + '/AnaBuffer3.bin', dtype=np.int16).reshape(-1,4)
-            Device1 = np.fromfile(self.fileName + '/DigBuffer1.bin', dtype=np.uint8).reshape(-1,1)
-            Device1 = np.flip(np.unpackbits(Device1, axis=1), axis=1).reshape(-1,32)
-            Device5dig = np.fromfile(self.fileName + '/DigBuffer2.bin', dtype=np.uint8).reshape(-1,1)
-            Device5dig = np.flip(np.unpackbits(Device5dig, axis=1), axis=1).reshape(-1,32)
-            dataout = [Device1, Device2, Device3, Device5ana, Device5dig]
+    def dataRetriever(self):
+        Device2 = np.fromfile(self.fileName + '/AnaBuffer1.bin', dtype=np.int16).reshape(-1,8)
+        Device3 = np.fromfile(self.fileName + '/AnaBuffer2.bin', dtype=np.int16).reshape(-1,32)
+        Device5ana = np.fromfile(self.fileName + '/AnaBuffer3.bin', dtype=np.int16).reshape(-1,4)
+        Device1 = np.fromfile(self.fileName + '/DigBuffer1.bin', dtype=np.uint8).reshape(-1,1)
+        Device1 = np.flip(np.unpackbits(Device1, axis=1), axis=1).reshape(-1,32)
+        Device5dig = np.fromfile(self.fileName + '/DigBuffer2.bin', dtype=np.uint8).reshape(-1,1)
+        Device5dig = np.flip(np.unpackbits(Device5dig, axis=1), axis=1).reshape(-1,32)
+        dataout = [Device1, Device2, Device3, Device5ana, Device5dig]
+        
+        self.lastmodtime = self.lastmodtimeNOW
+        self.goodTimeData.emit(dataout)
+        self.startcount += 1
+        print(f'Loading dataset #{self.startcount}')
             
-            self.lastmodtime = self.lastmodtimeNOW
-            self.goodTimeData.emit(dataout)
-            self.startcount += 1
-            print('loaded_data')
+            
 
 if __name__ == '__main__':
     app = QtCore.QCoreApplication.instance() # checks if QApplication already exists 
     if app is None: # create QApplication if it doesnt exist 
         app = QtW.QApplication(sys.argv)
     goodtimefolder = "//MOUFFETARD/goodTime_exchange"
-    goodTimeSeq = GoodTimeWindow(goodtimefolder)
+    goodTimeSeq = GoodTimeWindow(goodtimefolder, commondef=goodtimefolder + '/SAROC_Commondefs_2024_04_30.sqi')
     goodTimeSeq.activateWindow()
     app.aboutToQuit.connect(app.deleteLater)
     app.exec_()            
