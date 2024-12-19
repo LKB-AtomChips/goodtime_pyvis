@@ -1,6 +1,7 @@
 # %%
 import numpy as np
 import os
+import matplotlib.pyplot as plt
 # %%
 # Commondef reading & formatting
 commondef = "_goodtime_commondef/241128_SAROC_Commondef.sqi"
@@ -125,4 +126,10 @@ class Test():
 gtc = GoodTimeControl("//MOUFFETARD/goodTime_exchange")
 timer = QtCore.QTimer.singleShot(1000, gtc.deleteLater)
 
+# %%
+
+import matplotlib.colors
+self = Test()
+self.Nchannels = 107
+colortable = [matplotlib.colors.to_hex( plt.cm.jet(k/self.Nchannels)  )  for k in range(self.Nchannels)]
 # %%
