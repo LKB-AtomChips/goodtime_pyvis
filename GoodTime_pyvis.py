@@ -108,14 +108,29 @@ class GoodTimeWindow(QtW.QMainWindow):
         
         self.timeoffsetSpinbox.valueChanged.connect(self.change_timeoffset)
         
-        # Color table
-        self.colortable = [matplotlib.colors.to_hex( plt.cm.jet(((k * 17) % self.Nchannels)/self.Nchannels)  )  for k in range(self.Nchannels)]
         
         ## Generating list of digital channel numbers
         self.listDig = [k for k in range(self.Nchannels) if self.isDigital(k)]
         
         ## Generating channel names
         self.chNames = self.getlabels(commondef)
+        
+        # Color table
+        def color(channel):
+            """ Generates a color for each channel """
+            name = self.chNames[channel]
+            def hash(name, n = 3, limit = 256):
+                sum = 128
+                for k in range(n):
+                    sum += ord(name[k])
+                return float(sum % limit)/limit
+            
+            return matplotlib.colors.to_hex( plt.cm.rainbow(hash(name) + np.random.randint(-16, 16)/128. )   )
+            # if self.isDigital(channel):
+            #     return matplotlib.colors.to_hex( plt.cm.rainbow(hash(name))   )
+            # else:
+            #     return matplotlib.colors.to_hex( plt.cm.rainbow(hash(name))  ) 
+        self.colortable = [color(k) for k in range(self.Nchannels)]
                 
         # list1 = [8,24,25,82,83]
         # list2 = ['broken', 'broken', 'broken', 'unused','unused']
@@ -182,6 +197,12 @@ class GoodTimeWindow(QtW.QMainWindow):
         app_icon.addFile('icons/GT_logo.png', QtCore.QSize(32,32))
         self.setWindowIcon(app_icon)
 
+        # Fixing an initialization problem (the dirty way)
+        if self.checkedChs != []:
+            idx = self.checkedChs[0]
+            self.checkboxChs[idx].setChecked(False)
+            self.checkboxChs[idx].setChecked(True)
+        
     def change_timeoffset(self):
         self.timeoffset = self.timeoffsetSpinbox.value()
         self.update_plot()
@@ -266,17 +287,15 @@ class GoodTimeWindow(QtW.QMainWindow):
     def update_data(self, data):
         self.datatemp = data
         if self.pausestatus == False and self.updateCheckbox.isChecked() or self.data == []:
-            print('pouet')
             self.data_arrived = True
             self.data = data
             self.x = self.dtStep * np.arange(data[0].shape[0])
 #            self.tracelabel.setText(str(len(self.data))+' traces in memory')
             self.update_plot()
         elif self.pausestatus == False and not self.updateCheckbox.isChecked():
-            print("coin")
             self.data_arrived = True
         else:
-            print('eu')
+            pass
 
     def chselect(self, chn):
         '''
@@ -323,8 +342,6 @@ class GoodTimeWindow(QtW.QMainWindow):
             if i in self.listDig:
                 self.checkedDig.append(i)
                 newplot = self.ax2.plot(self.x- self.timeoffset, self.chselect(i) - 1.1*float(self.checkedDig.index(i)), '-', color = self.colortable[i]) # shift digital lines according to the position in the list
-                print(np.shape(self.chselect(i)))
-                print(np.shape(self.x))
                 # ydata = self.chselect(i)
                 # newplot = self.ax2.fill_between(self.x- self.timeoffset, ydata - 1.1*float(self.checkedDig.index(i)),
                                                 # np.multiply(ydata, 0.01) - 1.1*float(self.checkedDig.index(i)), '-',  color = self.colortable[i]) # shift digital lines according to the position in the list
@@ -352,7 +369,6 @@ class GoodTimeWindow(QtW.QMainWindow):
                         dataOld = self.dataplot[j][0].get_ydata() # get data of the old line (to be shifted)
                         self.dataplot[j][0].set_ydata(dataOld + 1.1*float(old_checkedDig.index(jj) - self.checkedDig.index(jj)))
                 
-        print(self.checkedChs, self.checkedDig)
         self.ax1.relim(); self.ax2.relim()
         self.ax1.autoscale(axis='y');self.ax2.autoscale(axis='y')
         self.canvas.draw() 
@@ -364,15 +380,14 @@ class GoodTimeWindow(QtW.QMainWindow):
         for i in range(len(self.dataplot)):
             self.dataplot[i][0].set_xdata(self.x - self.timeoffset)
             idx = self.checkedChs[i]
-            if idx in self.checkedDig:
+            if self.isDigital(idx):
                 self.dataplot[i][0].set_ydata(self.chselect(self.checkedChs[i])-1.1*float(self.checkedDig.index(idx)))     
             else:
                 self.dataplot[i][0].set_ydata(self.chselect(self.checkedChs[i]))
-        self.ax1.set_xlim(self.x[0] - self.timeoffset,self.x[-1]- self.timeoffset)  
-        self.ax1.relim(); self.ax2.relim()
+        # self.ax1.set_xlim(self.x[0] - self.timeoffset,self.x[-1]- self.timeoffset)  
+        # self.ax1.relim(); self.ax2.relim()
 #        self.ax1.autoscale();self.ax2.autoscale()        
         self.canvas.draw()
-        
         
     def clear_plot(self):
         for i in range(len(self.dataplot)):
