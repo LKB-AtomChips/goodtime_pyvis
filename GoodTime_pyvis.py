@@ -115,6 +115,11 @@ class GoodTimeWindow(QtW.QMainWindow):
         ## Generating channel names
         self.chNames = self.getlabels(commondef)
         
+        ##############
+        #### ESTHETICS
+        
+        self.linewidth = 3
+        
         # Color table
         def color(channel):
             """ Generates a color for each channel """
@@ -341,7 +346,8 @@ class GoodTimeWindow(QtW.QMainWindow):
             self.checkedChs.append(i)
             if i in self.listDig:
                 self.checkedDig.append(i)
-                newplot = self.ax2.plot(self.x- self.timeoffset, self.chselect(i) - 1.1*float(self.checkedDig.index(i)), '-', color = self.colortable[i]) # shift digital lines according to the position in the list
+                newplot = self.ax2.plot(self.x- self.timeoffset, self.chselect(i) - 1.1*float(self.checkedDig.index(i)), '-',
+                                        lw = self.linewidth, color = self.colortable[i]) # shift digital lines according to the position in the list
                 # ydata = self.chselect(i)
                 # newplot = self.ax2.fill_between(self.x- self.timeoffset, ydata - 1.1*float(self.checkedDig.index(i)),
                                                 # np.multiply(ydata, 0.01) - 1.1*float(self.checkedDig.index(i)), '-',  color = self.colortable[i]) # shift digital lines according to the position in the list
@@ -349,7 +355,8 @@ class GoodTimeWindow(QtW.QMainWindow):
                                                 # 0* self.chselect(i) - 1.1*float(self.checkedDig.index(i)), '-') # shift digital lines according to the position in the list
               
             else:
-                newplot = self.ax1.plot(self.x- self.timeoffset, self.chselect(i), '-',  color = self.colortable[i])
+                newplot = self.ax1.plot(self.x- self.timeoffset, self.chselect(i), '-', 
+                                        lw = self.linewidth, color = self.colortable[i])
             # self.checkboxChs[i].setStyleSheet('color:'+ newplot[0].get_color() + ';')
             self.checkboxChs[i].setStyleSheet('background-color:'+  self.colortable[i] + ';')
             self.dataplot.append(newplot)
@@ -369,7 +376,7 @@ class GoodTimeWindow(QtW.QMainWindow):
                         dataOld = self.dataplot[j][0].get_ydata() # get data of the old line (to be shifted)
                         self.dataplot[j][0].set_ydata(dataOld + 1.1*float(old_checkedDig.index(jj) - self.checkedDig.index(jj)))
                 
-        self.ax1.relim(); self.ax2.relim()
+        # self.ax1.relim(); self.ax2.relim()
         self.ax1.autoscale(axis='y');self.ax2.autoscale(axis='y')
         self.canvas.draw() 
         
