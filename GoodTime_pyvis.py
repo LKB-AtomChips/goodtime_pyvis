@@ -488,7 +488,7 @@ class GoodTimeControl(QtCore.QObject):
         self.goodTimeData.emit(dataout)
         self.startcount += 1
         time = datetime.now().strftime("%H:%M:%S")
-        logging.info("@ "time + f': Loading dataset #{self.startcount}')
+        logging.info("@ " + time + f': Loading dataset #{self.startcount}')
             
             
 
