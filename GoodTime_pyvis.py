@@ -15,7 +15,8 @@ import matplotlib.pyplot as plt
 import matplotlib.colors
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT
 import json
-
+import logging
+from datetime import datetime
 
 class GoodTimeWindow(QtW.QMainWindow):
     
@@ -123,18 +124,8 @@ class GoodTimeWindow(QtW.QMainWindow):
         # Color table
         def color(channel):
             """ Generates a color for each channel """
-            name = self.chNames[channel]
-            def hash(name, n = 3, limit = 256):
-                sum = 128
-                for k in range(n):
-                    sum += ord(name[k])
-                return float(sum % limit)/limit
+            return matplotlib.colors.to_hex( plt.cm.rainbow(np.random.randint(0 + 16, 256 - 16)/256. ))
             
-            return matplotlib.colors.to_hex( plt.cm.rainbow(hash(name) + np.random.randint(-16, 16)/128. )   )
-            # if self.isDigital(channel):
-            #     return matplotlib.colors.to_hex( plt.cm.rainbow(hash(name))   )
-            # else:
-            #     return matplotlib.colors.to_hex( plt.cm.rainbow(hash(name))  ) 
         self.colortable = [color(k) for k in range(self.Nchannels)]
                 
         # list1 = [8,24,25,82,83]
@@ -236,19 +227,19 @@ class GoodTimeWindow(QtW.QMainWindow):
             print("Config file saved !")
     
     def _loadSettings(self):
+        self.checkedChs = []
+        self.checkedDig = []
         try:
             with open(self.config_filename, 'r') as f:
                 imported_settings = json.load(f)
-                print("Config file loaded !")
+                logging.info("Config file loaded !")
             self.timeoffset = imported_settings["timeoffset"]
-            self.checkedChs = imported_settings["checkedChs"]
-            self.checkedDig = imported_settings["checkedDig"]
+            # self.checkedChs = imported_settings["checkedChs"]
+            # self.checkedDig = imported_settings["checkedDig"]
             # self.colortable = imported_settings["colortable"]
         except:
-            print("No config file found.")
+            logging.info("No config file found.")
             self.timeoffset = 0
-            self.checkedChs = []
-            self.checkedDig = []
         
 #    @QtCore.pyqtSlot(dict)
 #    def camera_status(self, datacam):
@@ -496,11 +487,13 @@ class GoodTimeControl(QtCore.QObject):
         self.lastmodtime = self.lastmodtimeNOW
         self.goodTimeData.emit(dataout)
         self.startcount += 1
-        print(f'Loading dataset #{self.startcount}')
+        time = datetime.now().strftime("%H:%M:%S")
+        logging.info("@ "time + f': Loading dataset #{self.startcount}')
             
             
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     app = QtCore.QCoreApplication.instance() # checks if QApplication already exists 
     if app is None: # create QApplication if it doesnt exist 
         app = QtW.QApplication(sys.argv)

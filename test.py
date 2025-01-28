@@ -133,3 +133,5 @@ self = Test()
 self.Nchannels = 107
 colortable = [matplotlib.colors.to_hex( plt.cm.jet(k/self.Nchannels)  )  for k in range(self.Nchannels)]
 # %%
+import time, datetime
+# %%
