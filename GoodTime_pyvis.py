@@ -224,7 +224,7 @@ class GoodTimeWindow(QtW.QMainWindow):
         settings = {"checkedChs": self.checkedChs, "checkedDig": self.checkedDig, "timeoffset":self.timeoffset, "colortable": self.colortable}
         with open(self.config_filename, 'w') as f:
             json.dump(settings, f)
-            print("Config file saved !")
+            logging.info("Config file saved !")
     
     def _loadSettings(self):
         self.checkedChs = []
