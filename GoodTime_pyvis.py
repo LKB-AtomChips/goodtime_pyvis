@@ -342,7 +342,6 @@ class GoodTimeWindow(QtW.QMainWindow):
         if i in self.checkedChs:
             self.checkboxChs[i].setStyleSheet('background-color: rgba('+ self.colortable_pyqt[i]  + ', 255 ); \
                                               font-weight:bold;')
-            self.checkboxChs[i].set
         else:
             self.checkboxChs[i].setStyleSheet('background-color: rgba('+ self.colortable_pyqt[i] + ', 32 ); \
                                               font-weight:normal;')
