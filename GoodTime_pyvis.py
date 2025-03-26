@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Dec 10 15:43:47 2018
-@author: tmazzoni
-
-Adapted for LKB ENS Rb experiment by Clement Raphin starting from 29 nov 2024
+Updated for SAROCEMA starting Nov 2024
+@authors: tmazzoni, clement raphin
 """
 import sys
 import numpy as np
@@ -124,7 +123,19 @@ class GoodTimeWindow(QtW.QMainWindow):
         # Color table
         def color(channel):
             """ Generates a color for each channel """
-            return matplotlib.colors.to_hex( plt.cm.rainbow(np.random.randint(0 + 16, 256 - 16)/256. ))
+            name = self.chNames[channel]
+            def hash(name, n = 8, limit = 256):
+                sum = 128
+                for k in range(n):
+                    sum += ord(name[k])
+                return float(sum % limit)/limit
+            
+            return matplotlib.colors.to_hex( plt.cm.rainbow(hash(name)) )# + np.random.randint(-16, 16)/128. )   )
+            # if self.isDigital(channel):
+            #     return matplotlib.colors.to_hex( plt.cm.rainbow(hash(name))   )
+            # else:
+            #     return matplotlib.colors.to_hex( plt.cm.rainbow(hash(name))  ) 
+        self.colortable = [color(k) for k in range(self.Nchannels)]
             
         self.colortable = [color(k) for k in range(self.Nchannels)]
                 
@@ -299,18 +310,28 @@ class GoodTimeWindow(QtW.QMainWindow):
         channel number start with 0
         0  -- 31 digital channels NI6533 - Device 1
         32 -- 39 analog channels NI6733 16 bits - Device 2
+            analog from -10 to +10 V
         40 -- 71 analog NI6723 13 bits - Device 3
+            analog from -10 to +10 V
         72 -- 75 analog NI6259 16 bits - Device 5
+            analog from -10 to +10 V or -5 to +5 V
         76 -- 107 digital NI6259 - Device 5
         Device 4 (PIC6723, same as 3) not used 
         '''
 #        print('chselect')
-        if chn >=0 and chn < 32: dataout = np.array(self.data[0][:,chn], dtype = np.float64)
-        elif chn < 40: dataout = np.array(self.data[1][:,chn-32], dtype = np.float64) / (2**16 - 1)
-        elif chn < 72: dataout = np.array(self.data[2][:,chn-40], dtype = np.float64) / (2**13 - 1)
-        elif chn < 76: dataout = np.array(self.data[3][:,chn-72], dtype = np.float64) / (2**16 - 1)
-        elif chn < 108: dataout = np.array(self.data[4][:,chn-76], dtype = np.float64)
-        else: print('channel number error!'); return None
+        if chn >=0 and chn < 32: # Device 1 (digital)
+            dataout = np.array(self.data[0][:,chn], dtype = np.float64)
+        elif chn < 40:  # Device 2
+            dataout = np.array(self.data[1][:,chn-32], dtype = np.float64) / (2**16 - 1)
+        elif chn < 72:  # Device 3
+            dataout = np.array(self.data[2][:,chn-40], dtype = np.float64) / (2**13 - 1)
+        elif chn < 76:  # Device 5
+            dataout = np.array(self.data[3][:,chn-72], dtype = np.float64) / (2**16 - 1)
+        elif chn < 108: # Device 5 (digital)
+            dataout = np.array(self.data[4][:,chn-76], dtype = np.float64)
+        else:
+            logging.error('channel number error!')
+            return None
         return dataout
         
     ################################################################################
