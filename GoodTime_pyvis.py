@@ -58,7 +58,7 @@ class GoodTimeWindow(QtW.QMainWindow):
         self.canvas = FigureCanvasQTAgg(self.fig)
         self.navi_toolbar = NavigationToolbar2QT(self.canvas, self)
         self.ax1 = self.fig.add_subplot(2,1,1)
-        self.ax1.set_ylabel('Analog', fontsize=12)
+        self.ax1.set_ylabel('Analog [V]', fontsize=12)
         self.ax1.set_xlim(0, 1); self.ax1.set_ylim(-1, 1)
         self.ax1.tick_params(axis='both', which='major', labelsize=8)
         self.ax2 = self.fig.add_subplot(2,1,2,sharex=self.ax1) 
@@ -124,7 +124,7 @@ class GoodTimeWindow(QtW.QMainWindow):
         def color(channel):
             """ Generates a color for each channel """
             name = self.chNames[channel]
-            def hash(name, n = 8, limit = 256):
+            def hash(name, n = 4, limit = 256):
                 sum = 128
                 for k in range(n):
                     try:
@@ -133,19 +133,16 @@ class GoodTimeWindow(QtW.QMainWindow):
                         break
                 return float(sum % limit)/limit
             
-            return matplotlib.colors.to_hex( plt.cm.rainbow(hash(name)) )# + np.random.randint(-16, 16)/128. )   )
-            # if self.isDigital(channel):
-            #     return matplotlib.colors.to_hex( plt.cm.rainbow(hash(name))   )
-            # else:
-            #     return matplotlib.colors.to_hex( plt.cm.rainbow(hash(name))  ) 
-        self.colortable = [color(k) for k in range(self.Nchannels)]
+            col = plt.cm.rainbow(hash(name))
+            return col
+            # return matplotlib.colors.to_hex(col, keep_alpha=True)
+        
+        def convert_to_style(color):
+            r, g, b = matplotlib.colors.to_rgb(color)
+            return f"{r*255:.0f}, {g*255:.0f}, {b*255:.0f}"
             
         self.colortable = [color(k) for k in range(self.Nchannels)]
-                
-        # list1 = [8,24,25,82,83]
-        # list2 = ['broken', 'broken', 'broken', 'unused','unused']
-        # for idx in range(5):
-        #     self.chNames = np.insert(self.chNames,list1[idx],list2[idx])
+        self.colortable_pyqt = [convert_to_style(c) for c in self.colortable]
         
         # Layouts
         self.buttonLayout = QtW.QGridLayout()
@@ -174,8 +171,10 @@ class GoodTimeWindow(QtW.QMainWindow):
         for idx in range(self.Nchannels):
             self.checkboxChs.append(QtW.QCheckBox('Ch' + str(idx).zfill(3) + ':' + self.chNames[idx]))
             if idx in self.checkedChs:
-                self.checkboxChs[idx].setChecked(True)
                 self.init_plot(idx)
+                self.checkboxChs[idx].setChecked(True)
+            else:
+                self.checkboxChs[idx].setStyleSheet('background-color: rgba('+ self.colortable_pyqt[idx] + ', 32 );')
                 
             if  self.chNames[idx] != "Inactive":
                 if self.isDigital(idx):
@@ -248,26 +247,13 @@ class GoodTimeWindow(QtW.QMainWindow):
                 imported_settings = json.load(f)
                 logging.info("Config file loaded !")
             self.timeoffset = imported_settings["timeoffset"]
-            # self.checkedChs = imported_settings["checkedChs"]
-            # self.checkedDig = imported_settings["checkedDig"]
+            self.checkedChs = imported_settings["checkedChs"]
+            self.checkedDig = imported_settings["checkedDig"]
             # self.colortable = imported_settings["colortable"]
         except:
             logging.info("No config file found.")
             self.timeoffset = 0
         
-#    @QtCore.pyqtSlot(dict)
-#    def camera_status(self, datacam):
-#        if self.cameracheckbox.isChecked() and self.data_arrived==True and self.datatemp!=[]:
-#            datacamtemp = []
-#            for key in datacam.keys():
-#                if key.find('param')==0 or (key.find('Nsum')==0 and len(key)<6):
-#                    datacamtemp.append(datacam[key])
-#            self.datacam.append(np.array(datacamtemp))
-#            self.data.append(self.datatemp)
-#            self.x.append(np.arange(len(self.datatemp)))
-#            self.tracelabel.setText(str(len(self.data))+' traces in memory')
-#            self.update_plot()
-#            self.data_arrived = False
 
     def _formattext(self, label):
         """Formats a label by removing tabs, white spaces and ;"""
@@ -322,7 +308,6 @@ class GoodTimeWindow(QtW.QMainWindow):
         76 -- 107 digital NI6259 - Device 5
         Device 4 (PIC6723, same as 3) not used 
         '''
-#        print('chselect')
         if chn >=0 and chn < 32: # Device 1 (digital)
             dataout = np.array(self.data[0][:,chn], dtype = np.float64)
         elif chn < 40:  # Device 2 - 16 bits
@@ -355,14 +340,18 @@ class GoodTimeWindow(QtW.QMainWindow):
             newplot = self.ax1.plot([0], [0], "-", color = self.colortable[i])
         self.dataplot.append(newplot)
         if i in self.checkedChs:
-            # self.checkboxChs[i].setStyleSheet('color:'+ newplot[0].get_color() + ';')
-            self.checkboxChs[i].setStyleSheet('background-color:'+ self.colortable[i] + ';')
+            self.checkboxChs[i].setStyleSheet('background-color: rgba('+ self.colortable_pyqt[i]  + ', 255 ); \
+                                              font-weight:bold;')
+            self.checkboxChs[i].set
+        else:
+            self.checkboxChs[i].setStyleSheet('background-color: rgba('+ self.colortable_pyqt[i] + ', 32 ); \
+                                              font-weight:normal;')
+            
         return True
     
     def add_plot(self):
         boxtext = self.sender()
         i = int(boxtext.text()[2:5])
-#        print('add_plot ch%.0f' %(i))
         if self.checkboxChs[i].isChecked():
             self.checkedChs.append(i)
             if i in self.listDig:
@@ -379,10 +368,12 @@ class GoodTimeWindow(QtW.QMainWindow):
                 newplot = self.ax1.plot(self.x- self.timeoffset, self.chselect(i), '-', 
                                         lw = self.linewidth, color = self.colortable[i])
             # self.checkboxChs[i].setStyleSheet('color:'+ newplot[0].get_color() + ';')
-            self.checkboxChs[i].setStyleSheet('background-color:'+  self.colortable[i] + ';')
+            self.checkboxChs[i].setStyleSheet('background-color:rgba('+  self.colortable_pyqt[i]  + ', 255 ) ;\
+                                              font-weight:bold;')
             self.dataplot.append(newplot)
         else:
-            self.checkboxChs[i].setStyleSheet('background-color:rgba(255, 255, 255, 0)')
+            self.checkboxChs[i].setStyleSheet('background-color:rgba('+  self.colortable_pyqt[i]  + ', 32) ;\
+                                              font-weight:normal;')
             if i in self.checkedChs: 
                 idx2remove = self.checkedChs.index(i)
                 self.dataplot[idx2remove].pop(0).remove() # not remove list, but remove line
@@ -421,7 +412,8 @@ class GoodTimeWindow(QtW.QMainWindow):
         for i in range(len(self.dataplot)):
             self.dataplot[i].pop(0).remove()
             self.checkboxChs[self.checkedChs[i]].setChecked(False)
-            self.checkboxChs[self.checkedChs[i]].setStyleSheet('background-color:rgba(255, 255, 255, 0)')
+            self.checkboxChs[self.checkedChs[i]].setStyleSheet('background-color:rgba('+  self.colortable_pyqt[i]  + ', 32) \
+                                              font-weight:normal;')
         self.dataplot = []
         self.checkedChs = []
         self.checkedDig = []
