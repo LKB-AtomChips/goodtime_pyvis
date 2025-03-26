@@ -127,7 +127,10 @@ class GoodTimeWindow(QtW.QMainWindow):
             def hash(name, n = 8, limit = 256):
                 sum = 128
                 for k in range(n):
-                    sum += ord(name[k])
+                    try:
+                        sum += ord(name[k])
+                    except IndexError:
+                        break
                 return float(sum % limit)/limit
             
             return matplotlib.colors.to_hex( plt.cm.rainbow(hash(name)) )# + np.random.randint(-16, 16)/128. )   )
@@ -306,6 +309,7 @@ class GoodTimeWindow(QtW.QMainWindow):
 
     def chselect(self, chn):
         '''
+        Specific on SAROCEMA (on 26/03/2025).
         Returns data, formatted according to channel number specificity.
         channel number start with 0
         0  -- 31 digital channels NI6533 - Device 1
@@ -314,19 +318,24 @@ class GoodTimeWindow(QtW.QMainWindow):
         40 -- 71 analog NI6723 13 bits - Device 3
             analog from -10 to +10 V
         72 -- 75 analog NI6259 16 bits - Device 5
-            analog from -10 to +10 V or -5 to +5 V
+            analog from -10 to +10 V
         76 -- 107 digital NI6259 - Device 5
         Device 4 (PIC6723, same as 3) not used 
         '''
 #        print('chselect')
         if chn >=0 and chn < 32: # Device 1 (digital)
             dataout = np.array(self.data[0][:,chn], dtype = np.float64)
-        elif chn < 40:  # Device 2
-            dataout = np.array(self.data[1][:,chn-32], dtype = np.float64) / (2**16 - 1)
-        elif chn < 72:  # Device 3
-            dataout = np.array(self.data[2][:,chn-40], dtype = np.float64) / (2**13 - 1)
-        elif chn < 76:  # Device 5
-            dataout = np.array(self.data[3][:,chn-72], dtype = np.float64) / (2**16 - 1)
+        elif chn < 40:  # Device 2 - 16 bits
+            # Conversion from digital value to V: 10 V <-> 32767 = 2**15 - 1
+            dataout = np.array(self.data[1][:,chn-32], dtype = np.float64) / (2**15 - 1) * 10
+        elif chn < 72:  # Device 3 - 13 bits analog from -10 to +10 V
+            dataout = np.array(self.data[2][:,chn-40], dtype = np.float64) / (2**12 - 1) * 10
+        elif chn < 76:  # Device 5 - 16 bits
+            # Conversion from digital value to V: 10 V <-> 32767 = 2**15 - 1
+            # Note: this channel is limited in range from data -4096 to +4095 due to improper GoodTime settings.
+            # This results in a physical limitation over the possible values of output voltage.
+            # This has nothing to do with the conversion performed here.
+            dataout = np.array(self.data[3][:,chn-72], dtype = np.float64) / (2**15 - 1) * 10
         elif chn < 108: # Device 5 (digital)
             dataout = np.array(self.data[4][:,chn-76], dtype = np.float64)
         else:
