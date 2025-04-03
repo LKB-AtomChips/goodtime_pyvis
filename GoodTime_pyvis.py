@@ -16,6 +16,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationTool
 import json
 import logging
 from datetime import datetime
+import qdarktheme
 
 class GoodTimeWindow(QtW.QMainWindow):
     
@@ -30,11 +31,13 @@ class GoodTimeWindow(QtW.QMainWindow):
 
         self.setWindowTitle('goodTime_sequence')
         self._main = QtW.QWidget()
-        self.setCentralWidget(self._main) 
-        
+        self.setCentralWidget(self._main)
+		
+        plt.style.use('dark_background')
         color = self._main.palette().color(QtGui.QPalette.Background)
         red, green, blue = color.red()/256, color.green()/256, color.blue()/256
-        self.windowcolor = (red, green, blue)
+        # self.windowcolor = (red, green, blue)
+        # self.windowcolor = self.bgcolor
         self.Desktop = QtW.QDesktopWidget().frameGeometry() # geometry of the Desktop
 
         self.pausestatus = True
@@ -53,8 +56,8 @@ class GoodTimeWindow(QtW.QMainWindow):
         self.goodTime_thread.start()
         
         # Canvas
-        figwidth, figheight = 9, 6
-        self.fig = plt.Figure(figsize=(figwidth,figheight), facecolor=self.windowcolor)
+        figwidth, figheight = 12, 5.5
+        self.fig = plt.Figure(figsize=(figwidth,figheight) )#, facecolor=self.windowcolor)
         self.canvas = FigureCanvasQTAgg(self.fig)
         self.navi_toolbar = NavigationToolbar2QT(self.canvas, self)
         self.ax1 = self.fig.add_subplot(2,1,1)
@@ -73,8 +76,8 @@ class GoodTimeWindow(QtW.QMainWindow):
         self.ax2.grid()
         self.reset_data
         self.fig.tight_layout()
-        self.canvas.resize(figwidth*self.fig.dpi, figheight*self.fig.dpi)
-        # self.canvas.setMinimumSize(figwidth*self.fig.dpi, figheight*self.fig.dpi) # this doesnt work right now
+        # self.canvas.resize(figwidth*self.fig.dpi, figheight*self.fig.dpi)
+        self.canvas.setMinimumSize(int(figwidth*self.fig.dpi), int(figheight*self.fig.dpi))
         self.canvas.draw()
 
         # Widgets
@@ -341,10 +344,10 @@ class GoodTimeWindow(QtW.QMainWindow):
         self.dataplot.append(newplot)
         if i in self.checkedChs:
             self.checkboxChs[i].setStyleSheet('background-color: rgba('+ self.colortable_pyqt[i]  + ', 255 ); \
-                                              font-weight:bold;')
+                                              font-weight:bold;color:black;')
         else:
             self.checkboxChs[i].setStyleSheet('background-color: rgba('+ self.colortable_pyqt[i] + ', 32 ); \
-                                              font-weight:normal;')
+                                              font-weight:normal; color:white;')
             
         return True
     
@@ -368,11 +371,11 @@ class GoodTimeWindow(QtW.QMainWindow):
                                         lw = self.linewidth, color = self.colortable[i])
             # self.checkboxChs[i].setStyleSheet('color:'+ newplot[0].get_color() + ';')
             self.checkboxChs[i].setStyleSheet('background-color:rgba('+  self.colortable_pyqt[i]  + ', 255 ) ;\
-                                              font-weight:bold;')
+                                              font-weight:bold; color:black;')
             self.dataplot.append(newplot)
         else:
             self.checkboxChs[i].setStyleSheet('background-color:rgba('+  self.colortable_pyqt[i]  + ', 32) ;\
-                                              font-weight:normal;')
+                                              font-weight:normal;color:white;')
             if i in self.checkedChs: 
                 idx2remove = self.checkedChs.index(i)
                 self.dataplot[idx2remove].pop(0).remove() # not remove list, but remove line
@@ -412,7 +415,7 @@ class GoodTimeWindow(QtW.QMainWindow):
             self.dataplot[i].pop(0).remove()
             self.checkboxChs[self.checkedChs[i]].setChecked(False)
             self.checkboxChs[self.checkedChs[i]].setStyleSheet('background-color:rgba('+  self.colortable_pyqt[i]  + ', 32) \
-                                              font-weight:normal;')
+                                              font-weight:normal; color:white;')
         self.dataplot = []
         self.checkedChs = []
         self.checkedDig = []
@@ -519,7 +522,8 @@ if __name__ == '__main__':
     if app is None: # create QApplication if it doesnt exist 
         app = QtW.QApplication(sys.argv)
     goodtimefolder = "//MOUFFETARD/goodTime_exchange"
-    goodTimeSeq = GoodTimeWindow(goodtimefolder, commondef=goodtimefolder + '/SAROC_Commondefs_2024_04_30.sqi')
+    goodTimeSeq = GoodTimeWindow(goodtimefolder, commondef=goodtimefolder + '/SAROC_Commondefs_2025_03_26.sqi')
     goodTimeSeq.activateWindow()
     app.aboutToQuit.connect(app.deleteLater)
+    qdarktheme.setup_theme()
     app.exec_()            
